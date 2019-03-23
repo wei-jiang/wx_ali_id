@@ -8,6 +8,7 @@ const session = require('express-session');
 const MongoStore = require('connect-mongo')(session);
 const server = require('http').Server(app);
 const io = require('socket.io')(server);
+const WebSocket = require('ws');
 const bodyParser = require('body-parser');
 const cookieParser = require('cookie-parser');
 const xmlparser = require('express-xml-bodyparser');
@@ -18,11 +19,15 @@ const moment = require('moment');
 require('log-timestamp')(()=> `[${moment().format('YYYY-MM-DD HH:mm:ss SSS')}] %s`);
 const mongo = require('mongodb'), MongoClient = mongo.MongoClient, ObjectId = mongo.ObjectID, Binary = mongo.Binary;
 const cfg = require('./secret');
+const ssm = require('./dealer/ssm');
 const aliapi = require('./dealer/aliapi');
 const wxapi = require('./dealer/wxapi');
+const cron = require('./dealer/cron')
+const wss = new WebSocket.Server({ server, path: "/ws"});
+
 global.m_db = null;
 
-app.set('port', process.env.PORT || 7799);
+app.set('port', process.env.PORT || 1111);
 nunjucks.configure('views', {
   autoescape: true,
   express: app
@@ -41,7 +46,7 @@ app.use(session({
 app.use(require('express').static(__dirname + '/public'));
 app.use(helmet());
 // app.use(cors());
-app.use(xmlparser());
+app.use(xmlparser({ trim: true, explicitArray: false}));
 app.use(cookieParser());
 app.use(bodyParser.json());       // to support JSON-encoded bodies
 app.use(bodyParser.urlencoded({     // to support URL-encoded bodies
@@ -52,7 +57,8 @@ MongoClient.connect(cfg.db_url, { useNewUrlParser: true })
     m_db = client.db(cfg.db_name);
     m_db.collection('notification').createIndex({ "createdAt": 1 }, { expireAfterSeconds: 24 * 3600 })
     console.log('connect to mongodb(ccb) success')
-    server.listen(app.get('port'), 'localhost', () => {
+    cron.start()
+    server.listen(app.get('port'), () => {
       console.log("Express server listening on port " + app.get('port'));
     });
   })
@@ -103,13 +109,21 @@ app.post('/test', function (req, res) {
   res.end(JSON.stringify(data));
 });
 
-io.on('connection', function (socket) {
-  socket.on('cmbc_qr_pay', function (data, fn) {
-
-
-  });
-
-  socket.on('enable_ssm_or_not', function (data) {
-
-  });
+wss.on('connection', ws => {
+  console.log('on websocket connection');
+  ssm.init(ws)
 });
+
+// io.set('transports', ['websocket']);
+io.on('connection', socket => {
+  console.log('on socket.io connection');
+  socket.emit('event', 'david')
+  socket.on('aaa', (data)=> {
+    console.log('on socket.io aaa', data);
+    socket.emit('event', data)
+  });
+  socket.on('disconnect', function () {
+    console.log('on socket.io disconnection');
+    socket.removeAllListeners();
+  });
+})

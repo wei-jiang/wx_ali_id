@@ -1,0 +1,35 @@
+locale -a
+sudo locale-gen en_GB.utf8
+sudo locale-gen zh_CN.utf8
+sudo update-locale
+locale -a
+
+vi /etc/default/locale
+LANG="en_US.UTF-8"
+
+db.order.find({
+        "time_end": {
+            $gte: "2018-12-29 00:00:00",
+            $lt: "2018-12-29 23:59:59"
+        }
+}).count()
+
+db.order.aggregate({ 
+    $match: {
+    "time_end": {
+            $gte: "2018-12-29 00:00:00",
+            $lt: "2018-12-29 23:59:59"
+        }
+    } 
+},
+{ $group: { _id : null, total : { $sum: "$total_amount" } } 
+},
+{ $project: { _id: 0, total: { $divide: [ "$total", 100 ] } } }
+);
+
+db.order.find({
+        "time_end": {
+            $gte: "2018-12-29 18:00:00",
+            $lt: "2018-12-29 23:59:59"
+        }
+});

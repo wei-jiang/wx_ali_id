@@ -65,7 +65,7 @@ async function post_tmpl_msg(req, res) {
 }
 async function handle_verify(req, res) {
 
-    const token = 'ExgGQu1gcUguYxfUXZ9gGU91g11CFUGb';
+    const token = cfg.wx_gzh_token;
     let signature = req.query.signature;
     let timestamp = req.query.timestamp;
     let nonce = req.query.nonce;
@@ -74,7 +74,7 @@ async function handle_verify(req, res) {
     str = str.sort().join('');
     // console.log(str);
     let sig = util.sha1(str)
-    console.log(req.query, sig);
+    // console.log(req.query, sig);
     if (sig == signature) {
         res.end(echostr);
     } else {
@@ -82,11 +82,11 @@ async function handle_verify(req, res) {
     }
 }
 async function handle_activity(req, res) {
-    console.log('post /do', req.body.xml);
+    // console.log('post /do', req.body.xml);
     let data = req.body.xml;
-    let myid = data.tousername[0];
-    let oid = data.fromusername[0];
-    let msgtype = data.msgtype[0];
+    let myid = data.tousername;
+    let oid = data.fromusername;
+    let msgtype = data.msgtype;
     let ndt = new Date();
     let resp = xml([
         {
@@ -95,7 +95,7 @@ async function handle_activity(req, res) {
                 { FromUserName: { _cdata: myid } },
                 { CreateTime: ndt.getTime() },
                 { MsgType: { _cdata: 'text' } },
-                { Content: { _cdata: '欢迎进入智慧旅游' } }
+                { Content: { _cdata: cfg.text_welcome } }
             ]
         }
     ], true)
@@ -108,13 +108,17 @@ async function handle_activity(req, res) {
         <Content><![CDATA[欢迎进入智慧旅游]]></Content>
     </xml>*/
     if (msgtype == 'text') {
-
         res.end(resp);
+        // res.end('success');
     } else if (msgtype == 'event') {
-        let event = data.event[0];
+        let event = data.event;
         if (event == 'subscribe') {
-            console.log('用户关注');
-            res.end(resp);
+            // console.log('用户关注');
+            // res.end(resp);
+            res.end('success');
+            const msgs = await m_db.collection('notification').find({touser:oid})
+            msgs.forEach( msg=>wxpay.post_tmpl_msg(msg) )
+            m_db.collection('notification').deleteMany({touser:oid})
         } else if (event == 'unsubscribe') {
             res.end('success');
         }

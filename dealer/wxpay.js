@@ -58,9 +58,11 @@ class Wxpay {
 				ret: res.errcode,
 				msg: res.errmsg
 			}
-		}
-		if(usr.subscribe == 1){
+		} else if(usr.subscribe == 0){
 			// cache msg
+			m_db.collection('notification').insert(data)
+		} else{
+			// usr.subscribe maybe null
 		}
 		return {
 			ret: -1,
